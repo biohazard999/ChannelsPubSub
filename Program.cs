@@ -1,10 +1,16 @@
 using ChannelsPubSub.Components;
+using ChannelsPubSub.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddSingleton(typeof(IPubSub<>), typeof(PubSub<>));
+
+builder.Services.AddHostedService<ProducingTimedHostedService>();
+builder.Services.AddHostedService<ConsumingTimedHostedService>();
 
 var app = builder.Build();
 
