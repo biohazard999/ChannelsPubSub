@@ -1,10 +1,73 @@
 ﻿@page "/consuming"
+@using ChannelsPubSub.Protocol
+@using ChannelsPubSub.Services
+@inject IPubSub<BackgroundTimeMessage> Subscriber
+@implements IDisposable
 
 <PageTitle>Consuming</PageTitle>
 <h1>Consuming</h1>
 
 <a href="/">Back</a>
 
-@code {
+<div style="display: grid;">
+    <button style="cursor: pointer;" @onclick="() => Dispose()">Stop</button>
+    <button style="cursor: pointer;" @onclick="async () => Subscribe()">Listen</button>
+    <button style="cursor: pointer;" @onclick="async () => Clear()">Clear</button>
+</div>
 
+@foreach (var message in messages)
+{
+    <p>@message.DateTime.ToLocalTime().ToString("F")</p>
+}
+
+@code {
+    IList<BackgroundTimeMessage> messages = [];
+
+    CancellationTokenSource? subscription;
+
+    protected override Task OnInitializedAsync()
+    {
+        Subscribe();
+        return base.OnInitializedAsync();
+    }
+
+    private void Subscribe()
+    {
+        var cts = new CancellationTokenSource();
+
+        subscription?.Dispose();
+
+        async Task Listen(CancellationToken cancellationToken)
+        {
+            while (await Subscriber.Reader.WaitToReadAsync(cancellationToken))
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                var message = await Subscriber.Reader.ReadAsync(cancellationToken);
+
+                messages.Add(message);
+
+                this.StateHasChanged();
+            }
+        }
+
+        _ = Listen(cts.Token);
+
+        subscription = cts;
+    }
+
+    public void Dispose()
+    {
+        subscription?.Cancel();
+        subscription?.Dispose();
+        subscription = null;
+    }
+
+    public void Clear()
+    {
+        messages = [];
+    }
 }
