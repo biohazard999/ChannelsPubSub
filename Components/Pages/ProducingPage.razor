@@ -1,11 +1,22 @@
 ﻿@page "/producing"
+@using ChannelsPubSub.Protocol
+@using ChannelsPubSub.Services
+@inject IPubSub<ClickTimeMessage> Publisher
 
 <PageTitle>Producing</PageTitle>
 <h1>Producing</h1>
 
 <a href="/">Back</a>
 
+<div style="display: grid;">
+    <button style="cursor: pointer;" @onclick="async () => await Publish()">Publish</button>
+</div>
+
+<p>See in the consoles log to see the sent messages</p>
 
 @code {
-
+    private async Task Publish()
+    {
+        await Publisher.Writer.WriteAsync(new ClickTimeMessage(DateTime.UtcNow));
+    }
 }
