@@ -1,9 +1,14 @@
 ﻿
 using ChannelsPubSub.Protocol;
 
+using Microsoft.Extensions.Logging;
+
 namespace ChannelsPubSub.Services;
 
-public sealed class ProducingTimedHostedService(IPubSub<BackgroundTimeMessage> publisher) : BackgroundService
+public sealed class ProducingTimedHostedService(
+    IPubSub<BackgroundTimeMessage> publisher,
+    ILogger<ProducingTimedHostedService> logger
+) : BackgroundService
 {
     protected async override Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -11,7 +16,9 @@ public sealed class ProducingTimedHostedService(IPubSub<BackgroundTimeMessage> p
 
         while(await timer.WaitForNextTickAsync(stoppingToken))
         {
-            await publisher.Writer.WriteAsync(new BackgroundTimeMessage(DateTime.UtcNow), stoppingToken);
+            var message = new BackgroundTimeMessage(DateTime.UtcNow);   
+            logger.LogInformation("Publishing time message: {DateTime:F}", message.DateTime.ToLocalTime());
+            await publisher.Writer.WriteAsync(message, stoppingToken);
         }
     }
 }
