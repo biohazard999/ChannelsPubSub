@@ -1,0 +1,78 @@
+﻿@page "/counter"
+
+@using ChannelsPubSub.Protocol
+@using ChannelsPubSub.Services
+@inject IPubSub<CounterMessage> PubSub
+
+
+<PageTitle>Counter</PageTitle>
+<h1>Counter</h1>
+
+<a href="/">Back</a>
+
+<div style="display: grid;">
+    <button style="cursor: pointer;" @onclick="async () => Reset()">Reset</button>
+    <button style="cursor: pointer;" @onclick="async () => await Increment(1)">Increment</button>
+</div>
+
+<div style="display: grid; font-size: 2rem; font-weight: bold; color: darkred">
+    @currentCount
+</div>
+
+@code {
+
+    private int currentCount = 0;
+
+    CancellationTokenSource? subscription;
+
+    protected override Task OnInitializedAsync()
+    {
+        Subscribe();
+        return base.OnInitializedAsync();
+    }
+
+    private void Subscribe()
+    {
+        var cts = new CancellationTokenSource();
+
+        subscription?.Dispose();
+
+        async Task Listen(CancellationToken cancellationToken)
+        {
+            while (await PubSub.Reader.WaitToReadAsync(cancellationToken))
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                var message = await PubSub.Reader.ReadAsync(cancellationToken);
+
+                currentCount += message.Count;
+
+                this.StateHasChanged();
+            }
+        }
+
+        _ = Listen(cts.Token);
+
+        subscription = cts;
+    }
+
+    public void Dispose()
+    {
+        subscription?.Cancel();
+        subscription?.Dispose();
+        subscription = null;
+    }
+
+    public void Reset()
+    {
+        currentCount = 0;
+    }
+
+    public async Task Increment(int amount)
+    {
+        await PubSub.Writer.WriteAsync(new CounterMessage(amount));
+    }
+}
